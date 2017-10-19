@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Json Manager</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+
+    <string name="action_settings">Settings</string>
+    <string name="action_save">Save</string>
+    <string name="action_saveas">Save As...</string>
+    <string name="action_import">Import...</string>
+    <string name="action_importurl">Import URL...</string>
+    <string name="select">Select</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="title_activity_fragment">FragmentActivity</string>
+    <string name="spinnerprompt">+</string>
+    <string name="action_prettify">prettify</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_paste">Paste</string>
+    <string-array name="treeoptions">
+        <item>Add Array</item>
+        <item>Add Object</item>
+        <item>Add Property</item>
+    </string-array>
+
+</resources>

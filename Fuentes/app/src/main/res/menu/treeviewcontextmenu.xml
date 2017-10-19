@@ -1,0 +1,20 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.quamove.jsonmanager.fragments.EditorFragment">
+    <item
+        android:id="@+id/action_copy"
+        android:orderInCategory="400"
+        android:title="@string/action_copy" />
+    <item
+        android:id="@+id/action_paste"
+        android:orderInCategory="400"
+        android:title="@string/action_paste" />
+    <item
+        android:id="@+id/action_import"
+        android:orderInCategory="400"
+        android:title="@string/action_import" />
+    <item
+        android:id="@+id/action_importurl"
+        android:orderInCategory="500"
+        android:title="@string/action_importurl" />
+</menu>

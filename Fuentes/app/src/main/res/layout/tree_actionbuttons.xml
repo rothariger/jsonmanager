@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/buttonsContainer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_alignParentRight="true"
+    android:layout_centerVertical="true">
+
+    <com.github.johnkil.print.PrintView
+        android:id="@+id/btn_edit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:iconColor="#12558C"
+        app:iconFont="fonts/material-icon-font.ttf"
+        app:iconSize="18dp"
+        app:iconText="@string/ic_create" />
+
+    <com.github.johnkil.print.PrintView
+        android:id="@+id/btn_addArray"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="3dp"
+        app:iconColor="#99cc00"
+        app:iconFont="fonts/material-icon-font.ttf"
+        app:iconSize="18dp"
+        app:iconText="[]" />
+
+    <com.github.johnkil.print.PrintView
+        android:id="@+id/btn_addObject"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="3dp"
+        app:iconColor="#99cc00"
+        app:iconFont="fonts/material-icon-font.ttf"
+        app:iconSize="18dp"
+        app:iconText="{}" />
+
+    <com.github.johnkil.print.PrintView
+        android:id="@+id/btn_addProperty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="3dp"
+        app:iconColor="#99cc00"
+        app:iconFont="fonts/material-icon-font.ttf"
+        app:iconSize="18dp"
+        app:iconText="P" />
+
+    <com.github.johnkil.print.PrintView
+        android:id="@+id/btn_delete"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="3dp"
+        app:iconColor="#ff4444"
+        app:iconFont="fonts/material-icon-font.ttf"
+        app:iconSize="18dp"
+        app:iconText="@string/ic_close" />
+</LinearLayout>

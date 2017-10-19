@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:title="File">
+        <menu>
+            <item
+                android:id="@+id/nav_home"
+                android:icon="@android:drawable/ic_menu_recent_history"
+                android:title="Home" />
+            <item
+                android:id="@+id/nav_newfile"
+                android:icon="@android:drawable/ic_input_add"
+                android:title="New" />
+            <item
+                android:id="@+id/nav_openfile"
+                android:icon="@android:drawable/ic_menu_edit"
+                android:title="Open" />
+            <item
+                android:id="@+id/nav_openfirebase"
+                android:enabled="false"
+                android:icon="@android:drawable/ic_menu_view"
+                android:title="Open from Firebase" />
+        </menu>
+    </item>
+</menu>
