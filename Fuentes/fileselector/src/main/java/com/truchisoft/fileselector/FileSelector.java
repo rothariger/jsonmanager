@@ -99,7 +99,7 @@ public class FileSelector {
     /**
      * This method prepares a filter's list with the String's array
      *
-     * @param aFilesFilter - array of filters, the elements of the array will be used as
+     * @param fitlesFilter - array of filters, the elements of the array will be used as
      *                     elements of the spinner
      */
     private void prepareFilterSpinner(String[] fitlesFilter) {
