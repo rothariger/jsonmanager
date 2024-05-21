@@ -1,6 +1,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="com.quamove.jsonmanager.fragments.EditorFragment">
+    tools:context="com.truchisoft.jsonmanager.fragments.EditorFragment">
     <item
         android:id="@+id/action_copy"
         android:orderInCategory="400"

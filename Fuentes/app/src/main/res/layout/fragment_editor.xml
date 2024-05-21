@@ -5,7 +5,7 @@
     android:background="@android:color/background_light"
     android:clickable="true"
     android:orientation="vertical"
-    tools:context="com.quamove.jsonmanager.fragments.EditorFragment">
+    tools:context="com.truchisoft.jsonmanager.fragments.EditorFragment">
 
     <TabHost
         android:id="@android:id/tabhost"
