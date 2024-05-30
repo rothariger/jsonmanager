@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="?attr/selectableItemBackground"
     app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-    <com.github.johnkil.print.PrintView
+    <com.truchisoft.jsonmanager.print.PrintView
         android:id="@+id/arrow_icon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -14,11 +14,10 @@
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true"
         app:iconColor="#12558C"
-        app:iconFont="fonts/material-icon-font.ttf"
-        app:iconSize="15dp"
+        app:iconSize="24dp"
         app:iconText="@string/ic_keyboard_arrow_right" />
 
-    <com.github.johnkil.print.PrintView
+    <com.truchisoft.jsonmanager.print.PrintView
         android:id="@+id/icon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -27,7 +26,6 @@
         android:layout_centerVertical="true"
         android:layout_toRightOf="@id/arrow_icon"
         app:iconColor="#12558C"
-        app:iconFont="fonts/material-icon-font.ttf"
         app:iconSize="24dp"
         app:iconText="@string/ic_email" />
 
@@ -38,7 +36,6 @@
         android:layout_alignWithParentIfMissing="true"
         android:layout_centerVertical="true"
         android:layout_marginLeft="10dp"
-        android:layout_toLeftOf="@+id/buttonsContainer"
         android:layout_toRightOf="@+id/icon"
         android:textSize="16sp">
 
@@ -75,6 +72,5 @@
             layout="@layout/edittextbuttons" />
     </ViewSwitcher>
 
-
     <include layout="@layout/tree_actionbuttons" />
-</FrameLayout>
+</RelativeLayout>

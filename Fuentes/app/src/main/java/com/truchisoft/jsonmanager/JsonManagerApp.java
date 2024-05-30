@@ -36,6 +36,5 @@ public class JsonManagerApp extends Application {
     public void handleUncaughtException (Thread thread, Throwable e)
     {
         e.printStackTrace(); // not all Android versions will print the stack trace automatically
-
     }
 }

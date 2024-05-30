@@ -1,18 +1,19 @@
 package com.truchisoft.jsonmanager.adapters;
 
 import android.app.Activity;
+import android.graphics.Typeface;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.ViewSwitcher;
 
-import com.github.johnkil.print.PrintView;
 import com.truchisoft.jsonmanager.R;
 import com.truchisoft.jsonmanager.data.tree.ArrayItem;
 import com.truchisoft.jsonmanager.data.tree.BaseItem;
 import com.truchisoft.jsonmanager.data.tree.ObjectItem;
 import com.truchisoft.jsonmanager.data.tree.PropertyItem;
+import com.truchisoft.jsonmanager.print.PrintView;
 
 import java.util.Set;
 

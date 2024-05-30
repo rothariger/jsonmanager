@@ -1,17 +1,19 @@
 package com.truchisoft.jsonmanager.adapters;
 
-import android.app.Activity;
-import android.app.FragmentTransaction;
-import android.content.Context;
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
 
+import androidx.fragment.app.FragmentActivity;
+import androidx.fragment.app.FragmentTransaction;
+
 import com.truchisoft.jsonmanager.R;
 import com.truchisoft.jsonmanager.data.FileData;
 import com.truchisoft.jsonmanager.fragments.EditorFragment;
+import com.truchisoft.jsonmanager.utils.FileUtils;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -22,10 +24,10 @@ import java.util.List;
  */
 public class FileListAdapter extends BaseAdapter {
     private List<FileData> _files;
-    private Context _context;
+    private FragmentActivity _fragmentActivity;
 
-    public FileListAdapter(Context context, List<FileData> files) {
-        _context = context;
+    public FileListAdapter(FragmentActivity fragmentActivity, List<FileData> files) {
+        _fragmentActivity = fragmentActivity;
         _files = files;
     }
 
@@ -59,7 +61,7 @@ public class FileListAdapter extends BaseAdapter {
         TextView tvFilePath;
 
         if (convertView == null) {
-            convertView = LayoutInflater.from(_context)
+            convertView = LayoutInflater.from(_fragmentActivity.getApplicationContext())
                     .inflate(R.layout.filelistitem, parent, false);
             tvFileName = (TextView) convertView.findViewById(R.id.tvFileName);
             tvFileCreationDate = (TextView) convertView.findViewById(R.id.tvFileCreationDate);
@@ -76,8 +78,8 @@ public class FileListAdapter extends BaseAdapter {
             tvFilePath = (TextView) convertView.getTag(R.id.tvFilePath);
         }
 
-        FileData fd = (FileData) getItem(position);
-        final File f = new File(fd.FileName);
+        final FileData fd = (FileData) getItem(position);
+        File f = new File(fd.FileName);
         tvFileName.setText(f.getName());
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MMM/yyyy HH:mm:ss");
         tvFileCreationDate.setText(sdf.format(fd.CreationDate));
@@ -87,9 +89,15 @@ public class FileListAdapter extends BaseAdapter {
         convertView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (f.exists()) {
-                    FragmentTransaction transaction = ((Activity) _context).getFragmentManager().beginTransaction();
-                    transaction.replace(R.id.fragment, EditorFragment.newInstance(f.getAbsolutePath()));
+                String fileName = fd.FileName;
+                String fullFn = FileUtils.getRealPathFromURI(_fragmentActivity.getApplicationContext(), Uri.parse(fileName));
+                String fileContent = "";
+                if (fileName.contains("msf"))
+                    fileContent = FileUtils.ReadFromResource(fileName);
+                fileContent = FileUtils.ReadFromFile(fileName);
+                if (!fileContent.isEmpty()) {
+                    FragmentTransaction transaction = _fragmentActivity.getSupportFragmentManager().beginTransaction();
+                    transaction.replace(R.id.fragment, EditorFragment.newInstance(fileName));
                     transaction.addToBackStack(null);
                     transaction.commit();
                 }

@@ -1,13 +1,11 @@
 package com.truchisoft.jsonmanager.fragments;
 
 import android.app.Activity;
-import android.app.Fragment;
-import android.app.FragmentTransaction;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -19,6 +17,9 @@ import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.TabHost;
 import android.widget.Toast;
+
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -43,6 +44,8 @@ import java.io.File;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import pl.polidea.treeview.InMemoryTreeStateManager;
 import pl.polidea.treeview.TreeBuilder;
@@ -126,7 +129,7 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
     public boolean onContextItemSelected(MenuItem item) {
         int position;
         final BaseItem bi;
-        if(item.getItemId() == R.id.action_import) {
+        if (item.getItemId() == R.id.action_import) {
             position = ((AdapterView.AdapterContextMenuInfo) item.getMenuInfo()).position;
             bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
 
@@ -143,18 +146,15 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
                     }
                 }
             }, FileUtils.FileFilter).show();
-        }
-         else if(item.getItemId() == R.id.action_importurl) {
+        } else if (item.getItemId() == R.id.action_importurl) {
             position = ((AdapterView.AdapterContextMenuInfo) item.getMenuInfo()).position;
             bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
             ActionImportUrl(bi);
-        }
-        else if(item.getItemId() == R.id.action_copy) {
+        } else if (item.getItemId() == R.id.action_copy) {
             position = ((AdapterView.AdapterContextMenuInfo) item.getMenuInfo()).position;
             bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
             copyJsonValue = getTreeElements(bi).toString();
-        }
-        else if(item.getItemId() == R.id.action_paste) {
+        } else if (item.getItemId() == R.id.action_paste) {
             position = ((AdapterView.AdapterContextMenuInfo) item.getMenuInfo()).position;
             bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
             try {
@@ -210,8 +210,7 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_editor, container, false);
         registerForContextMenu(view.findViewById(R.id.tvJson));
@@ -278,8 +277,7 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
         try {
             mListener = (OnFragmentInteractionListener) activity;
         } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString()
-                    + " must implement OnFragmentInteractionListener");
+            throw new ClassCastException(activity.toString() + " must implement OnFragmentInteractionListener");
         }
     }
 
@@ -331,11 +329,12 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
     }
 
     private String loadFile(String file) {
+        if (file.contains("msf")) return FileUtils.ReadFromResource(file);
         return FileUtils.ReadFromFile(file);
     }
 
     private void showFileList() {
-        FragmentTransaction transaction = getActivity().getFragmentManager().beginTransaction();
+        FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
         transaction.replace(R.id.fragment, new FileListFragment());
         transaction.addToBackStack(null);
         transaction.commit();
@@ -358,31 +357,32 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
     }
 
     private void ConvertTask(final JsonElement jElement, final BaseItem parent) {
-        final ProgressDialog progress = ProgressDialog.show(getActivity(), "Json Manager",
-                "Please Wait...", true);
-        AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
+//        final ProgressDialog progress = ProgressDialog.show(getActivity(), "Json Manager",
+//                "Please Wait...", true);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Handler handler = new Handler(Looper.getMainLooper());
+
+        executor.execute(new Runnable() {
             @Override
-            protected Void doInBackground(Void... params) {
-                if (parent == null)
-                    ConvertJsonToTree(parent, jElement, "Root");
+            public void run() {
+                if (parent == null) ConvertJsonToTree(parent, jElement, "Root");
                 else {
                     if (parent instanceof ArrayItem)
                         ConvertJsonToTree(parent, jElement, String.valueOf(_mManager.getChildren(parent).size()));
                     else
                         ConvertJsonToTree(parent, jElement, "Item " + String.valueOf(_mManager.getChildren(parent).size()));
                 }
-                return null;
-            }
 
-            @Override
-            protected void onPostExecute(Void aVoid) {
-                super.onPostExecute(aVoid);
-                _mManager.refresh();
-                progress.hide();
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        _mManager.refresh();
+//                        progress.hide();
+                    }
+                });
             }
-        };
-
-        task.execute();
+        });
     }
     //endregion
 
@@ -403,8 +403,7 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
             for (Map.Entry<String, JsonElement> entry : jElement.getAsJsonObject().entrySet()) {
                 if (entry.getValue().isJsonPrimitive()) {
                     _tBuilder.addRelation(currentItem, new PropertyItem(entry.getKey(), entry.getValue().getAsString()));
-                } else
-                    ConvertJsonToTree(currentItem, entry.getValue(), entry.getKey());
+                } else ConvertJsonToTree(currentItem, entry.getValue(), entry.getKey());
             }
         }
 
@@ -440,8 +439,7 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
                 @Override
                 public void handleFile(String filePath) {
                     File f = FileUtils.CreateFile(filePath);
-                    if (!FileUtils.FileExists(f))
-                        FileUtils.AddFileToPrefs(f);
+                    if (!FileUtils.FileExists(f)) FileUtils.AddFileToPrefs(f);
                     if (f.canWrite()) {
                         FileUtils.WriteToFile(f, jData);
                     }
@@ -449,8 +447,7 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
             }, FileUtils.FileFilter).show();
         } else {
             File f = new File(filename);
-            if (!FileUtils.FileExists(f))
-                FileUtils.AddFileToPrefs(f);
+            if (!FileUtils.FileExists(f)) FileUtils.AddFileToPrefs(f);
             FileUtils.WriteToFile(f, jData);
         }
     }
