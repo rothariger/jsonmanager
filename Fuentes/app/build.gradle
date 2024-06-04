@@ -42,5 +42,4 @@ dependencies {
     implementation libs.fragment
 
     implementation project(':treeview')
-    implementation project(':fileselector')
 }

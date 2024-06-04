@@ -1,7 +1,9 @@
 package com.truchisoft.jsonmanager.utils;
 
+import android.content.ClipData;
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
@@ -9,7 +11,11 @@ import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.util.Log;
 
-import com.truchisoft.fileselector.OnHandleFileListener;
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+
 import com.truchisoft.jsonmanager.JsonManagerApp;
 import com.truchisoft.jsonmanager.data.FileData;
 import com.truchisoft.jsonmanager.data.FileType;
@@ -24,7 +30,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URI;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.Date;
 import java.util.List;
 
@@ -45,13 +53,13 @@ public class FileUtils {
     }
 
     public static final String[] FileFilter = {"*.*", ".json", ".txt"};
-    public static OnHandleFileListener SaveFileListener = new OnHandleFileListener() {
-        @Override
-        public void handleFile(final String filePath) {
-            File f = CreateFile(filePath);
-            AddFileToPrefs(f);
-        }
-    };
+//    public static OnHandleFileListener SaveFileListener = new OnHandleFileListener() {
+//        @Override
+//        public void handleFile(final String filePath) {
+//            File f = CreateFile(filePath);
+//            AddFileToPrefs(f);
+//        }
+//    };
 
     public static File CreateFile(String filePath) {
         String fullFilename = filePath;
@@ -70,8 +78,9 @@ public class FileUtils {
         return f;
     }
 
-    public static void AddFileToPrefs(File f) {
+    public static void AddFileToPrefs(File f, Uri uri) {
         FileData fData = new FileData();
+        fData.rawUri = uri.toString();
         fData.FileName = f.getAbsolutePath();
         fData.CreationDate = new Date();
         fData.FileType = FileType.Local;
@@ -79,9 +88,10 @@ public class FileUtils {
         PrefManager.setFileData(JsonManagerApp.getContext(), StaticData.getFiles());
     }
 
-    public static void AddPathToPrefs(String path) {
+    public static void AddPathToPrefs(String path, Uri uri) {
         FileData fData = new FileData();
         fData.FileName = path;
+        fData.rawUri = uri.toString();
         fData.CreationDate = new Date();
         fData.FileType = FileType.Local;
         StaticData.getFiles().add(fData);
@@ -89,14 +99,37 @@ public class FileUtils {
     }
 
     public static void WriteToFile(File f, byte[] data) {
+        FileOutputStream outputStream = null;
+        Uri uri = null;
+
         try {
-            FileOutputStream outputStreamWriter = new FileOutputStream(f, false);
-            outputStreamWriter.write(data);
-            outputStreamWriter.close();
+            uri = Uri.parse(f.getAbsolutePath());
+            Context ctx = JsonManagerApp.getContext();
+            ctx.grantUriPermission(ctx.getPackageName(), uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            ctx.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            outputStream = new FileOutputStream(ctx.getContentResolver().openFileDescriptor(uri, "rwt").getFileDescriptor());
+            outputStream.write(data);
+            outputStream.close();
         } catch (IOException e) {
             Log.e("Exception", "File write failed: " + e.toString());
         }
     }
+
+    public static void WriteToFile(Uri uri, byte[] data) {
+        FileOutputStream outputStream = null;
+
+        try {
+            Context ctx = JsonManagerApp.getContext();
+            ctx.grantUriPermission(ctx.getPackageName(), uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            ctx.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            outputStream = new FileOutputStream(ctx.getContentResolver().openFileDescriptor(uri, "rwt").getFileDescriptor());
+            outputStream.write(data);
+            outputStream.close();
+        } catch (IOException e) {
+            Log.e("Exception", "File write failed: " + e.toString());
+        }
+    }
+
 
     public static String ReadFromFile(String filename) {
         String ret = "";
@@ -127,12 +160,17 @@ public class FileUtils {
     }
 
     public static String ReadFromResource(String filename) {
+        return ReadFromResource(Uri.parse(filename));
+    }
+
+    public static String ReadFromResource(Uri uri) {
         String ret = "";
         InputStream inputStream = null;
-        Uri uri = null;
         try {
-            uri = Uri.parse(filename);
-            inputStream = JsonManagerApp.getContext().getContentResolver().openInputStream(uri);
+            Context ctx = JsonManagerApp.getContext();
+            ctx.grantUriPermission(ctx.getPackageName(), uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            ctx.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            inputStream = ctx.getContentResolver().openInputStream(uri);
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             int i;
             try {
@@ -146,12 +184,12 @@ public class FileUtils {
                 e.printStackTrace();
             }
             ret = byteArrayOutputStream.toString();
-        } catch (
-                FileNotFoundException e) {
+        } catch (FileNotFoundException e) {
             Log.e("ReadFromFile", "File not found: " + e.toString());
-        } catch (
-                IOException e) {
+        } catch (IOException e) {
             Log.e("ReadFromFile", "Can not read file: " + e.toString());
+        } catch (SecurityException e) {
+
         }
 
         return ret;
@@ -287,6 +325,5 @@ public class FileUtils {
     public static boolean isGooglePhotosUri(Uri uri) {
         return "com.google.android.apps.photos.content".equals(uri.getAuthority());
     }
-
 }
 

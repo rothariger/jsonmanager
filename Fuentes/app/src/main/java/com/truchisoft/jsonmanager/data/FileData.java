@@ -1,5 +1,7 @@
 package com.truchisoft.jsonmanager.data;
 
+import android.net.Uri;
+
 import java.util.Date;
 
 /**
@@ -8,6 +10,7 @@ import java.util.Date;
 public class FileData {
 
     public String FileName;
+    public String rawUri;
     public Date CreationDate;
     public Date ModificationDate;
     public FileType FileType;

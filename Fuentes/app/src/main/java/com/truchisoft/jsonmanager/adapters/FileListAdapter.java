@@ -10,6 +10,7 @@ import android.widget.TextView;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentTransaction;
 
+import com.truchisoft.jsonmanager.JsonManagerApp;
 import com.truchisoft.jsonmanager.R;
 import com.truchisoft.jsonmanager.data.FileData;
 import com.truchisoft.jsonmanager.fragments.EditorFragment;
@@ -78,31 +79,32 @@ public class FileListAdapter extends BaseAdapter {
             tvFilePath = (TextView) convertView.getTag(R.id.tvFilePath);
         }
 
-        final FileData fd = (FileData) getItem(position);
-        File f = new File(fd.FileName);
-        tvFileName.setText(f.getName());
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MMM/yyyy HH:mm:ss");
-        tvFileCreationDate.setText(sdf.format(fd.CreationDate));
-        tvFileType.setText(fd.FileType.toString());
-        tvFilePath.setText(f.getParent());
+        try {
+            final FileData fd = (FileData) getItem(position);
+            File f = new File(FileUtils.getRealPathFromURI(JsonManagerApp.getContext(), Uri.parse(fd.rawUri)));
+            tvFileName.setText(f.getName());
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MMM/yyyy HH:mm:ss");
+            tvFileCreationDate.setText(sdf.format(fd.CreationDate));
+            tvFileType.setText(fd.FileType.toString());
+            tvFilePath.setText(f.getParent());
 
-        convertView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String fileName = fd.FileName;
-                String fullFn = FileUtils.getRealPathFromURI(_fragmentActivity.getApplicationContext(), Uri.parse(fileName));
-                String fileContent = "";
-                if (fileName.contains("msf"))
-                    fileContent = FileUtils.ReadFromResource(fileName);
-                fileContent = FileUtils.ReadFromFile(fileName);
-                if (!fileContent.isEmpty()) {
-                    FragmentTransaction transaction = _fragmentActivity.getSupportFragmentManager().beginTransaction();
-                    transaction.replace(R.id.fragment, EditorFragment.newInstance(fileName));
-                    transaction.addToBackStack(null);
-                    transaction.commit();
+            convertView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    String fileName = fd.FileName;
+                    String fileContent = "";
+                    fileContent = FileUtils.ReadFromResource(Uri.parse(fd.rawUri));
+                    if (!fileContent.isEmpty()) {
+                        FragmentTransaction transaction = _fragmentActivity.getSupportFragmentManager().beginTransaction();
+                        transaction.replace(R.id.fragment, EditorFragment.newInstance(fileName, Uri.parse(fd.rawUri)));
+                        transaction.addToBackStack(null);
+                        transaction.commit();
+                    }
                 }
-            }
-        });
+            });
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
         return convertView;
     }
 }

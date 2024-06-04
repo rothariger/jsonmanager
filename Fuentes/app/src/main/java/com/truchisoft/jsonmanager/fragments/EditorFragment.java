@@ -2,6 +2,7 @@ package com.truchisoft.jsonmanager.fragments;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -18,6 +19,11 @@ import android.widget.EditText;
 import android.widget.TabHost;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
@@ -28,9 +34,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
-import com.truchisoft.fileselector.FileOperation;
-import com.truchisoft.fileselector.FileSelector;
-import com.truchisoft.fileselector.OnHandleFileListener;
 import com.truchisoft.jsonmanager.R;
 import com.truchisoft.jsonmanager.adapters.JsonAdapter;
 import com.truchisoft.jsonmanager.data.tree.ArrayItem;
@@ -64,12 +67,14 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_FILE_NAME = "fileName";
+    private static final String ARG_URI = "argURI";
     private Context fragmentContext = null;
 
     // TODO: Rename and change types of parameters
     private String filename;
+    private Uri _uri;
     private Menu _currentMenu;
-
+    private BaseItem _bi;
     private TreeBuilder<BaseItem> _tBuilder;
     private TreeStateManager<BaseItem> _mManager;
     private JsonAdapter _jAdapter;
@@ -86,10 +91,11 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
      * @return A new instance of fragment EditorFragment.
      */
     // TODO: Rename and change types and number of parameters
-    public static EditorFragment newInstance(String Filename) {
+    public static EditorFragment newInstance(String Filename, Uri uri) {
         EditorFragment fragment = new EditorFragment();
         Bundle args = new Bundle();
         args.putString(ARG_FILE_NAME, Filename);
+        args.putParcelable(ARG_URI, uri);
         fragment.setArguments(args);
         return fragment;
     }
@@ -104,6 +110,7 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
         fragmentContext = this.getActivity();
         if (getArguments() != null) {
             filename = getArguments().getString(ARG_FILE_NAME);
+            _uri = getArguments().getParcelable(ARG_URI);
         }
         setHasOptionsMenu(true);
     }
@@ -112,9 +119,9 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
     public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
         if (v.getId() == R.id.tvJson) {
             AdapterView.AdapterContextMenuInfo acmi = (AdapterView.AdapterContextMenuInfo) menuInfo;
-            BaseItem bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(acmi.position);
+            _bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(acmi.position);
 
-            if (!(bi instanceof PropertyItem)) {
+            if (!(_bi instanceof PropertyItem)) {
                 MenuInflater inflater = getActivity().getMenuInflater();
                 inflater.inflate(R.menu.treeviewcontextmenu, menu);
 
@@ -126,39 +133,35 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
     }
 
     @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
     public boolean onContextItemSelected(MenuItem item) {
         int position;
-        final BaseItem bi;
         if (item.getItemId() == R.id.action_import) {
             position = ((AdapterView.AdapterContextMenuInfo) item.getMenuInfo()).position;
-            bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
+            _bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
 
-            new FileSelector(getActivity(), FileOperation.LOAD, new OnHandleFileListener() {
-                @Override
-                public void handleFile(String filePath) {
-                    File f = new File(filePath);
-                    if (f.exists()) {
-                        String fileContent = loadFile(filePath);
-                        try {
-                            loadJson(fileContent, bi);
-                        } catch (JsonParseException jpe) {
-                        }
-                    }
-                }
-            }, FileUtils.FileFilter).show();
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+
+            startActivityResultLauncher.launch(intent);
         } else if (item.getItemId() == R.id.action_importurl) {
             position = ((AdapterView.AdapterContextMenuInfo) item.getMenuInfo()).position;
-            bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
-            ActionImportUrl(bi);
+            _bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
+            ActionImportUrl(_bi);
         } else if (item.getItemId() == R.id.action_copy) {
             position = ((AdapterView.AdapterContextMenuInfo) item.getMenuInfo()).position;
-            bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
-            copyJsonValue = getTreeElements(bi).toString();
+            _bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
+            copyJsonValue = getTreeElements(_bi).toString();
         } else if (item.getItemId() == R.id.action_paste) {
             position = ((AdapterView.AdapterContextMenuInfo) item.getMenuInfo()).position;
-            bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
+            _bi = (BaseItem) ((TreeViewList) getActivity().findViewById(R.id.tvJson)).getItemAtPosition(position);
             try {
-                loadJson(copyJsonValue, bi);
+                loadJson(copyJsonValue, _bi);
             } catch (JsonParseException jpe) {
             }
         }
@@ -300,12 +303,13 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
                         try {
                             loadJson(jsonvalue);
                         } catch (JsonParseException jpe) {
+                            Toast.makeText(getActivity(), "Exception ocurred while trying to read the json text: \n" + jpe.getCause().getMessage(), Toast.LENGTH_LONG).show();
                         }
                     }
                     _currentMenu.findItem(R.id.action_prettify).setVisible(false);
                 } catch (Exception ex) {
                     Toast.makeText(getActivity(), "Exception ocurred while trying to read the json text: \n" + ex.getCause().getMessage(), Toast.LENGTH_LONG).show();
-                    TabHost tabs = (TabHost) getView().findViewById(android.R.id.tabhost);
+                    TabHost tabs = getView().findViewById(android.R.id.tabhost);
                     tabs.setOnTabChangedListener(null);
                     tabs.setCurrentTab(1);
                     tabs.setOnTabChangedListener(this);
@@ -324,13 +328,13 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
     }
 
     //region File Related Functions
-    private String loadFile() {
-        return loadFile(filename);
+
+    private String loadFile(Uri uri) {
+        return FileUtils.ReadFromResource(uri);
     }
 
-    private String loadFile(String file) {
-        if (file.contains("msf")) return FileUtils.ReadFromResource(file);
-        return FileUtils.ReadFromFile(file);
+    private String loadFile() {
+        return FileUtils.ReadFromResource(_uri);
     }
 
     private void showFileList() {
@@ -435,20 +439,15 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
         final byte[] jData = getPreetyJson().getBytes();
 
         if (newFile || filename == null || filename.isEmpty()) {
-            new FileSelector(fragmentContext, FileOperation.SAVE, new OnHandleFileListener() {
-                @Override
-                public void handleFile(String filePath) {
-                    File f = FileUtils.CreateFile(filePath);
-                    if (!FileUtils.FileExists(f)) FileUtils.AddFileToPrefs(f);
-                    if (f.canWrite()) {
-                        FileUtils.WriteToFile(f, jData);
-                    }
-                }
-            }, FileUtils.FileFilter).show();
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            intent.putExtra(Intent.EXTRA_TITLE, "newfile.json");
+            createFileResultLauncher.launch(intent);
         } else {
             File f = new File(filename);
-            if (!FileUtils.FileExists(f)) FileUtils.AddFileToPrefs(f);
-            FileUtils.WriteToFile(f, jData);
+            if (!FileUtils.FileExists(f)) FileUtils.AddFileToPrefs(f, _uri);
+            FileUtils.WriteToFile(_uri, jData);
         }
     }
 
@@ -476,4 +475,34 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
     }
     //endregion
 
+    ActivityResultLauncher<Intent> startActivityResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                Intent intent = result.getData();
+                if (intent != null) {
+                    Uri uri = intent.getData();
+                    String fileContent = loadFile(uri);
+                    try {
+                        loadJson(fileContent, _bi);
+                    } catch (JsonParseException jpe) {
+                        Toast.makeText(getActivity(), "There was an exception loading the json", Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
+
+    ActivityResultLauncher<Intent> createFileResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                Intent intent = result.getData();
+                if (intent != null) {
+                    Uri uri = intent.getData();
+                    File f = new File(FileUtils.getRealPathFromURI(getContext(), uri));
+                    if (!FileUtils.FileExists(f)) FileUtils.AddFileToPrefs(f, uri);
+                    try {
+                        FileUtils.WriteToFile(uri, getPreetyJson().getBytes());
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
 }
