@@ -446,7 +446,7 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
             createFileResultLauncher.launch(intent);
         } else {
             File f = new File(filename);
-            if (!FileUtils.FileExists(f)) FileUtils.AddFileToPrefs(f, _uri);
+            FileUtils.AddFileToPrefs(f, _uri);
             FileUtils.WriteToFile(_uri, jData);
         }
     }
@@ -497,7 +497,7 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
                 if (intent != null) {
                     Uri uri = intent.getData();
                     File f = new File(FileUtils.getRealPathFromURI(getContext(), uri));
-                    if (!FileUtils.FileExists(f)) FileUtils.AddFileToPrefs(f, uri);
+                    FileUtils.AddFileToPrefs(f, uri);
                     try {
                         FileUtils.WriteToFile(uri, getPreetyJson().getBytes());
                     } catch (Exception ex) {

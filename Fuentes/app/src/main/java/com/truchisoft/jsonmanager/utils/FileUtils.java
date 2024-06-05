@@ -40,51 +40,14 @@ import java.util.List;
  * Created by Maximiliano.Schmidt on 05/10/2015.
  */
 public class FileUtils {
-    public static String getExtension(String fileName) {
-        final String emptyExtension = "";
-        if (fileName == null) {
-            return emptyExtension;
-        }
-        int index = fileName.lastIndexOf(".");
-        if (index == -1) {
-            return emptyExtension;
-        }
-        return fileName.substring(index + 1);
-    }
-
-    public static final String[] FileFilter = {"*.*", ".json", ".txt"};
-//    public static OnHandleFileListener SaveFileListener = new OnHandleFileListener() {
-//        @Override
-//        public void handleFile(final String filePath) {
-//            File f = CreateFile(filePath);
-//            AddFileToPrefs(f);
-//        }
-//    };
-
-    public static File CreateFile(String filePath) {
-        String fullFilename = filePath;
-        if (FileUtils.getExtension(filePath) == "") {
-            fullFilename += ".json";
-        }
-        File f = new File(fullFilename);
-        if (!f.exists()) {
-            try {
-                f.createNewFile();
-                StaticData.setCurrentFile(f);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        return f;
-    }
-
     public static void AddFileToPrefs(File f, Uri uri) {
         FileData fData = new FileData();
         fData.rawUri = uri.toString();
         fData.FileName = f.getAbsolutePath();
         fData.CreationDate = new Date();
         fData.FileType = FileType.Local;
-        StaticData.getFiles().add(fData);
+        if (!FileUtils.FileExists(uri))
+            StaticData.getFiles().add(fData);
         PrefManager.setFileData(JsonManagerApp.getContext(), StaticData.getFiles());
     }
 
@@ -94,25 +57,9 @@ public class FileUtils {
         fData.rawUri = uri.toString();
         fData.CreationDate = new Date();
         fData.FileType = FileType.Local;
-        StaticData.getFiles().add(fData);
+        if (!FileUtils.FileExists(uri))
+            StaticData.getFiles().add(fData);
         PrefManager.setFileData(JsonManagerApp.getContext(), StaticData.getFiles());
-    }
-
-    public static void WriteToFile(File f, byte[] data) {
-        FileOutputStream outputStream = null;
-        Uri uri = null;
-
-        try {
-            uri = Uri.parse(f.getAbsolutePath());
-            Context ctx = JsonManagerApp.getContext();
-            ctx.grantUriPermission(ctx.getPackageName(), uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            ctx.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            outputStream = new FileOutputStream(ctx.getContentResolver().openFileDescriptor(uri, "rwt").getFileDescriptor());
-            outputStream.write(data);
-            outputStream.close();
-        } catch (IOException e) {
-            Log.e("Exception", "File write failed: " + e.toString());
-        }
     }
 
     public static void WriteToFile(Uri uri, byte[] data) {
@@ -128,39 +75,6 @@ public class FileUtils {
         } catch (IOException e) {
             Log.e("Exception", "File write failed: " + e.toString());
         }
-    }
-
-
-    public static String ReadFromFile(String filename) {
-        String ret = "";
-
-        try {
-            FileInputStream inputStream = new FileInputStream(filename);
-
-            if (inputStream != null) {
-                InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-                String receiveString = "";
-                StringBuilder stringBuilder = new StringBuilder();
-
-                while ((receiveString = bufferedReader.readLine()) != null) {
-                    stringBuilder.append(receiveString);
-                }
-
-                inputStream.close();
-                ret = stringBuilder.toString();
-            }
-        } catch (FileNotFoundException e) {
-            Log.e("ReadFromFile", "File not found: " + e.toString());
-        } catch (IOException e) {
-            Log.e("ReadFromFile", "Can not read file: " + e.toString());
-        }
-
-        return ret;
-    }
-
-    public static String ReadFromResource(String filename) {
-        return ReadFromResource(Uri.parse(filename));
     }
 
     public static String ReadFromResource(Uri uri) {
@@ -195,11 +109,11 @@ public class FileUtils {
         return ret;
     }
 
-    public static boolean FileExists(File f) {
+    public static boolean FileExists(Uri uri) {
         List<FileData> lst = StaticData.getFiles();
         boolean vReturn = false;
         for (FileData fd : lst) {
-            if (fd.FileName.equals(f.getAbsolutePath()))
+            if (fd.rawUri.equals(uri.toString()))
                 vReturn = true;
         }
         return vReturn;

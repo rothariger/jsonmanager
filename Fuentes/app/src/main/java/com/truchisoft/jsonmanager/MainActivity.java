@@ -5,15 +5,12 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -34,7 +31,6 @@ import com.truchisoft.jsonmanager.print.PrintConfig;
 import com.truchisoft.jsonmanager.utils.PrefManager;
 
 import java.io.File;
-import java.net.URISyntaxException;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, EditorFragment.OnFragmentInteractionListener {
@@ -73,6 +69,8 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
+        CreateFloatingButton();
+
         Intent intent = getIntent();
         String action = intent.getAction();
         if (action.compareTo(Intent.ACTION_VIEW) == 0) {
@@ -81,10 +79,12 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+    private void CreateFloatingButton() {
+    }
+
     private void moveToEditor(File f, Uri uri) {
         if (f.exists()) {
-            if (!com.truchisoft.jsonmanager.utils.FileUtils.FileExists(f))
-                com.truchisoft.jsonmanager.utils.FileUtils.AddFileToPrefs(f, uri);
+            com.truchisoft.jsonmanager.utils.FileUtils.AddFileToPrefs(f, uri);
             FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
             transaction.replace(R.id.fragment, com.truchisoft.jsonmanager.fragments.EditorFragment.newInstance(f.getAbsolutePath(), uri));
             transaction.addToBackStack(null);
