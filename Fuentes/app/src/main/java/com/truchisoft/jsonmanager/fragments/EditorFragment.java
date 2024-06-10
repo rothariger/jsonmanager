@@ -299,16 +299,32 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
                 try {
                     String jsonvalue = ((EditText) getActivity().findViewById(R.id.etEditJson)).getText().toString();
                     if (!currentJson.equals(jsonvalue)) {
-                        refreshTree();
                         try {
                             loadJson(jsonvalue);
+                            refreshTree();
                         } catch (JsonParseException jpe) {
-                            Toast.makeText(getActivity(), "Exception ocurred while trying to read the json text: \n" + jpe.getCause().getMessage(), Toast.LENGTH_LONG).show();
+                            String message = "Exception ocurred while trying to read the json text: \n";
+                            if (jpe.getCause() != null)
+                                message += jpe.getCause().getMessage();
+                            else
+                                message += jpe.getMessage();
+                            Toast.makeText(getActivity(), message, Toast.LENGTH_LONG).show();
+
+                            TabHost tabs = (TabHost) getActivity().findViewById(android.R.id.tabhost);
+                            tabs.setOnTabChangedListener(null);
+                            tabs.setCurrentTab(1);
+                            tabs.setOnTabChangedListener(this);
                         }
                     }
                     _currentMenu.findItem(R.id.action_prettify).setVisible(false);
                 } catch (Exception ex) {
-                    Toast.makeText(getActivity(), "Exception ocurred while trying to read the json text: \n" + ex.getCause().getMessage(), Toast.LENGTH_LONG).show();
+                    String message = "Exception ocurred while trying to read the json text: \n";
+                    if (ex.getCause() != null)
+                        message += ex.getCause().getMessage();
+                    else
+                        message += ex.getMessage();
+                    Toast.makeText(getActivity(), message, Toast.LENGTH_LONG).show();
+
                     TabHost tabs = getView().findViewById(android.R.id.tabhost);
                     tabs.setOnTabChangedListener(null);
                     tabs.setCurrentTab(1);
@@ -353,7 +369,7 @@ public class EditorFragment extends Fragment implements TabHost.OnTabChangeListe
     private void loadJson(String jsonstring, BaseItem parent) throws JsonParseException {
         JsonElement jElement = new Gson().fromJson(jsonstring, JsonElement.class);
         if (jElement == null) {
-            Toast.makeText(getActivity(), "There was an exception loading the json", Toast.LENGTH_LONG).show();
+//            Toast.makeText(getActivity(), "There was an exception loading the json", Toast.LENGTH_LONG).show();
             throw new JsonParseException("There was an exception parsing the json string.");
         }
 
