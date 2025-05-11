@@ -1,34 +1,53 @@
 plugins {
     alias(libs.plugins.android.application)
+    id 'com.github.triplet.play' version '3.9.0'
 }
 
 android {
     namespace 'com.truchisoft.jsonmanager'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.truchisoft.jsonmanager"
-        minSdk 24
-        targetSdk 34
-        versionCode 5
+        minSdk 30
+        targetSdk 35
+        versionCode 6
         versionName "1.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(rootProject.file(System.getenv("KEYSTORE_FILE") ?: project.properties["KEYSTORE_FILE"]))
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: project.properties["KEYSTORE_PASSWORD"]
+            keyAlias System.getenv("KEY_ALIAS") ?: project.properties["KEY_ALIAS"]
+            keyPassword System.getenv("KEY_PASSWORD") ?: project.properties["KEY_PASSWORD"]
+        }
     }
 
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
     compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
+
     buildFeatures {
         viewBinding true
     }
 }
 
-dependencies {
+play {
+    serviceAccountCredentials = file("../key/project.json")
+    track = 'production'
+}
 
+dependencies {
     implementation libs.appcompat
     implementation libs.material
     implementation libs.constraintlayout
