@@ -1,38 +1,23 @@
 package com.truchisoft.jsonmanager.utils;
 
-import android.content.ClipData;
-import android.content.ContentUris;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Environment;
-import android.provider.DocumentsContract;
-import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 import android.util.Log;
-
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 
 import com.truchisoft.jsonmanager.JsonManagerApp;
 import com.truchisoft.jsonmanager.data.FileData;
 import com.truchisoft.jsonmanager.data.FileType;
 import com.truchisoft.jsonmanager.data.StaticData;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.Date;
 import java.util.List;
 
@@ -40,73 +25,143 @@ import java.util.List;
  * Created by Maximiliano.Schmidt on 05/10/2015.
  */
 public class FileUtils {
-    public static void AddFileToPrefs(File f, Uri uri) {
-        FileData fData = new FileData();
-        fData.rawUri = uri.toString();
-        fData.FileName = f.getAbsolutePath();
-        fData.CreationDate = new Date();
-        fData.FileType = FileType.Local;
-        if (!FileUtils.FileExists(uri))
-            StaticData.getFiles().add(fData);
-        PrefManager.setFileData(JsonManagerApp.getContext(), StaticData.getFiles());
-    }
 
-    public static void AddPathToPrefs(String path, Uri uri) {
-        FileData fData = new FileData();
-        fData.FileName = path;
-        fData.rawUri = uri.toString();
-        fData.CreationDate = new Date();
-        fData.FileType = FileType.Local;
-        if (!FileUtils.FileExists(uri))
-            StaticData.getFiles().add(fData);
-        PrefManager.setFileData(JsonManagerApp.getContext(), StaticData.getFiles());
-    }
-
-    public static void WriteToFile(Uri uri, byte[] data) {
-        FileOutputStream outputStream = null;
-
-        try {
-            Context ctx = JsonManagerApp.getContext();
-            ctx.grantUriPermission(ctx.getPackageName(), uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            ctx.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            outputStream = new FileOutputStream(ctx.getContentResolver().openFileDescriptor(uri, "rwt").getFileDescriptor());
-            outputStream.write(data);
-            outputStream.close();
-        } catch (IOException e) {
-            Log.e("Exception", "File write failed: " + e.toString());
+    public static String getDisplayNameFromUri(Context context, Uri uri) {
+        if (uri == null) {
+            return "untitled.json"; // Or null, depending on desired error handling
         }
-    }
-
-    public static String ReadFromResource(Uri uri) {
-        String ret = "";
-        InputStream inputStream = null;
-        try {
-            Context ctx = JsonManagerApp.getContext();
-            ctx.grantUriPermission(ctx.getPackageName(), uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            ctx.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            inputStream = ctx.getContentResolver().openInputStream(uri);
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            int i;
+        String displayName = null;
+        if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
+            Cursor cursor = null;
             try {
-                i = inputStream.read();
-                while (i != -1) {
-                    byteArrayOutputStream.write(i);
-                    i = inputStream.read();
+                cursor = context.getContentResolver().query(uri, null, null, null, null);
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (nameIndex != -1) {
+                        displayName = cursor.getString(nameIndex);
+                    }
                 }
-                inputStream.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                // Log error, could be SecurityException or others
+                Log.e("FileUtils", "Error querying display name for content URI: " + uri, e);
+            } finally {
+                if (cursor != null) {
+                    cursor.close();
+                }
             }
-            ret = byteArrayOutputStream.toString();
-        } catch (FileNotFoundException e) {
-            Log.e("ReadFromFile", "File not found: " + e.toString());
-        } catch (IOException e) {
-            Log.e("ReadFromFile", "Can not read file: " + e.toString());
-        } catch (SecurityException e) {
-
         }
+        if (displayName == null) {
+            displayName = uri.getLastPathSegment();
+        }
+        // Basic cleanup for typical file name issues from lastPathSegment
+        if (displayName != null) {
+            int slashIndex = displayName.lastIndexOf('/');
+            if (slashIndex != -1) {
+                displayName = displayName.substring(slashIndex + 1);
+            }
+        }
+        if (displayName == null || displayName.isEmpty()) {
+            displayName = "untitled.json"; // Default if everything else fails
+        }
+        return displayName;
+    }
 
-        return ret;
+    public static void AddUriToPrefs(Context context, String displayName, Uri uri) {
+        if (uri == null) return;
+        FileData fData = new FileData();
+        fData.rawUri = uri.toString();
+        fData.FileName = displayName; // Store the display name
+        fData.CreationDate = new Date();
+        fData.FileType = FileType.Local; // Or determine more accurately if possible
+
+        // Ensure context is not null for PrefManager
+        Context appContext = (context != null) ? context.getApplicationContext() : JsonManagerApp.getContext();
+
+        if (!FileUtils.FileExists(uri)) { // FileExists checks StaticData
+            StaticData.getFiles().add(fData);
+        } else {
+            // Optional: Update existing FileData if found, e.g., timestamp or display name
+            for (FileData existingFd : StaticData.getFiles()) {
+                if (existingFd.rawUri.equals(uri.toString())) {
+                    existingFd.FileName = displayName; // Update display name
+                    existingFd.CreationDate = new Date(); // Update date
+                    break;
+                }
+            }
+        }
+        PrefManager.setFileData(appContext, StaticData.getFiles());
+    }
+
+    public static boolean WriteToFile(Context context, Uri uri, byte[] data) {
+        if (uri == null || context == null) return false;
+        OutputStream outputStream = null;
+        try {
+            // No need to call grantUriPermission here if permissions are handled by the caller (Activity/Fragment)
+            // The caller should ensure it has write permission, possibly through ACTION_CREATE_DOCUMENT or persisted permissions.
+            // context.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION); // Caller should manage this
+            outputStream = context.getContentResolver().openOutputStream(uri);
+            if (outputStream == null) {
+                 Log.e("FileUtils", "Failed to open output stream for URI: " + uri);
+                 return false;
+            }
+            outputStream.write(data);
+            return true; // Indicate success
+        } catch (FileNotFoundException e) {
+            Log.e("FileUtils", "File not found for URI (Write): " + uri, e);
+            return false;
+        } catch (IOException e) {
+            Log.e("FileUtils", "IOException during write for URI: " + uri, e);
+            return false;
+        } catch (SecurityException e) {
+            Log.e("FileUtils", "SecurityException during write for URI: " + uri, e);
+            return false;
+        } finally {
+            if (outputStream != null) {
+                try {
+                    outputStream.close();
+                } catch (IOException e) {
+                    Log.e("FileUtils", "Error closing output stream for URI: " + uri, e);
+                }
+            }
+        }
+    }
+
+    public static String ReadFromResource(Context context, Uri uri) {
+        if (uri == null || context == null) return ""; // Or null
+        InputStream inputStream = null;
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        try {
+            // Similar to WriteToFile, caller should manage persistable permissions.
+            // context.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            inputStream = context.getContentResolver().openInputStream(uri);
+            if (inputStream == null) {
+                Log.e("FileUtils", "Failed to open input stream for URI: " + uri);
+                return ""; // Or null
+            }
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                byteArrayOutputStream.write(buffer, 0, bytesRead);
+            }
+        } catch (FileNotFoundException e) {
+            Log.e("FileUtils", "File not found for URI (Read): " + uri, e);
+            return ""; // Or null
+        } catch (IOException e) {
+            Log.e("FileUtils", "IOException during read for URI: " + uri, e);
+            return ""; // Or null
+        } catch (SecurityException e) {
+            Log.e("FileUtils", "SecurityException during read for URI: " + uri, e);
+            return ""; // Or null
+        } finally {
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    Log.e("FileUtils", "Error closing input stream for URI: " + uri, e);
+                }
+            }
+        }
+        return byteArrayOutputStream.toString();
     }
 
     public static boolean FileExists(Uri uri) {
@@ -118,126 +173,4 @@ public class FileUtils {
         }
         return vReturn;
     }
-
-    public static String getRealPathFromURI(Context context, Uri uri) {
-        if (DocumentsContract.isDocumentUri(context, uri)) {
-            if (isExternalStorageDocument(uri)) {
-                String docId = DocumentsContract.getDocumentId(uri);
-                String[] split = docId.split(":");
-                String type = split[0];
-                if ("primary".equals(type)) {
-                    if (split.length > 1) {
-                        return Environment.getExternalStorageDirectory().toString() + "/" + split[1];
-                    } else {
-                        return Environment.getExternalStorageDirectory().toString() + "/";
-                    }
-                } else {
-                    return "storage" + "/" + docId.replace(":", "/");
-                }
-            } else if (isDownloadsDocument(uri)) {
-                String fileName = getFilePath(context, uri);
-                if (fileName != null) {
-                    return Environment.getExternalStorageDirectory().toString() + "/Download/" + fileName;
-                }
-                String id = DocumentsContract.getDocumentId(uri);
-                if (id.startsWith("raw:")) {
-                    id = id.replaceFirst("raw:", "");
-                    File file = new File(id);
-                    if (file.exists()) {
-                        return id;
-                    }
-                }
-                Uri contentUri = ContentUris.withAppendedId(Uri.parse("content://downloads/public_downloads"), Long.valueOf(id));
-                return getDataColumn(context, contentUri, null, null);
-            } else if (isMediaDocument(uri)) {
-                String docId = DocumentsContract.getDocumentId(uri);
-                String[] split = docId.split(":");
-                String type = split[0];
-                Uri contentUri = null;
-                switch (type) {
-                    case "image":
-                        contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-                        break;
-                    case "video":
-                        contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
-                        break;
-                    case "audio":
-                        contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
-                        break;
-                }
-                String selection = "_id=?";
-                String[] selectionArgs = new String[]{split[1]};
-                return getDataColumn(context, contentUri, selection, selectionArgs);
-            }
-        } else if ("content".equals(uri.getScheme())) {
-            if (isGooglePhotosUri(uri)) {
-                return uri.getLastPathSegment();
-            } else {
-                return getDataColumn(context, uri, null, null);
-            }
-        } else if ("file".equals(uri.getScheme())) {
-            return uri.getPath();
-        }
-        return null;
-    }
-
-    public static String getDataColumn(Context context, Uri uri, String selection,
-                                       String[] selectionArgs) {
-        Cursor cursor = null;
-        String column = "_data";
-        String[] projection = new String[]{column};
-        try {
-            if (uri == null) {
-                return null;
-            }
-            cursor = context.getContentResolver().query(uri, projection, selection, selectionArgs,
-                    null);
-            if (cursor != null && cursor.moveToFirst()) {
-                int index = cursor.getColumnIndexOrThrow(column);
-                return cursor.getString(index);
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-        }
-        return null;
-    }
-
-    public static String getFilePath(Context context, Uri uri) {
-        Cursor cursor = null;
-        String[] projection = {
-                MediaStore.MediaColumns.DISPLAY_NAME
-        };
-        try {
-            if (uri == null) return null;
-            cursor = context.getContentResolver().query(uri, projection, null, null, null);
-            if (cursor != null && cursor.moveToFirst()) {
-                int index = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME);
-                return cursor.getString(index);
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-        }
-        return null;
-    }
-
-    public static boolean isExternalStorageDocument(Uri uri) {
-        return "com.android.externalstorage.documents".equals(uri.getAuthority());
-    }
-
-    public static boolean isDownloadsDocument(Uri uri) {
-        return "com.android.providers.downloads.documents".equals(uri.getAuthority());
-    }
-
-    public static boolean isMediaDocument(Uri uri) {
-        return "com.android.providers.media.documents".equals(uri.getAuthority());
-    }
-
-    public static boolean isGooglePhotosUri(Uri uri) {
-        return "com.google.android.apps.photos.content".equals(uri.getAuthority());
-    }
 }
-

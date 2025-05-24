@@ -2,14 +2,19 @@ package com.truchisoft.jsonmanager;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.provider.OpenableColumns;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -30,8 +35,6 @@ import com.truchisoft.jsonmanager.fragments.FileListFragment;
 import com.truchisoft.jsonmanager.print.PrintConfig;
 import com.truchisoft.jsonmanager.utils.PrefManager;
 
-import java.io.File;
-
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, EditorFragment.OnFragmentInteractionListener {
     DrawerLayout _drawer;
@@ -48,9 +51,7 @@ public class MainActivity extends AppCompatActivity
         onPostCreate();
 
         if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
+            requestPermissions(new String[]{ Manifest.permission.READ_EXTERNAL_STORAGE }, STORAGE_PERMISSION_CODE);
         }
     }
 
@@ -69,39 +70,61 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        CreateFloatingButton();
-
         Intent intent = getIntent();
         String action = intent.getAction();
-        if (action.compareTo(Intent.ACTION_VIEW) == 0) {
-            File f = new File(intent.getData().getPath());
-            moveToEditor(f, intent.getData());
+        if (action != null && action.compareTo(Intent.ACTION_VIEW) == 0) { // Add null check for action
+            Uri uri = intent.getData();
+            if (uri != null) { // Add null check for uri
+                moveToEditor(uri);
+            }
         }
     }
 
-    private void CreateFloatingButton() {
-    }
-
-    private void moveToEditor(File f, Uri uri) {
-        if (f.exists()) {
-            com.truchisoft.jsonmanager.utils.FileUtils.AddFileToPrefs(f, uri);
-            FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-            transaction.replace(R.id.fragment, com.truchisoft.jsonmanager.fragments.EditorFragment.newInstance(f.getAbsolutePath(), uri));
-            transaction.addToBackStack(null);
-            transaction.commit();
+    private String getDisplayNameFromUri(Uri uri) {
+        if (uri == null) {
+            return null;
         }
-    }
-
-    private void moveToEditor(String path, Uri uri) {
-        if (!path.isEmpty()) {
-            com.truchisoft.jsonmanager.utils.FileUtils.AddPathToPrefs(path, uri);
-            FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-            transaction.replace(R.id.fragment, com.truchisoft.jsonmanager.fragments.EditorFragment.newInstance(path, uri));
-            transaction.addToBackStack(null);
-            transaction.commit();
+        String displayName = null;
+        if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
+            Cursor cursor = null;
+            try {
+                cursor = getContentResolver().query(uri, null, null, null, null);
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (nameIndex != -1) {
+                        displayName = cursor.getString(nameIndex);
+                    }
+                }
+            } finally {
+                if (cursor != null) {
+                    cursor.close();
+                }
+            }
         }
+        if (displayName == null) {
+            displayName = uri.getLastPathSegment();
+            if (displayName == null || displayName.isEmpty()) {
+                displayName = "untitled.json"; // Default if everything else fails
+            }
+        }
+        return displayName;
     }
 
+    private void moveToEditor(Uri uri) {
+        if (uri == null) {
+            return; // Or handle error
+        }
+        String displayName = getDisplayNameFromUri(uri);
+        // Assuming FileUtils.AddUriToPrefs will be the new method signature after refactoring FileUtils in a later step.
+        // For now, we adapt to what AddPathToPrefs does, but using display name and the uri.
+        com.truchisoft.jsonmanager.utils.FileUtils.AddPathToPrefs(displayName, uri); // This will be updated when FileUtils is refactored
+
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        // Assuming EditorFragment.newInstance will be changed to accept (String displayName, Uri uri)
+        transaction.replace(R.id.fragment, com.truchisoft.jsonmanager.fragments.EditorFragment.newInstance(displayName, uri));
+        transaction.addToBackStack(null);
+        transaction.commit();
+    }
 
     @Override
     public void onBackPressed() {
@@ -172,8 +195,52 @@ public class MainActivity extends AppCompatActivity
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == STORAGE_PERMISSION_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                onPostCreate();
+            boolean readPermissionGranted = false;
+            if (grantResults.length > 0 && permissions.length > 0) { // Check permissions array as well
+                for (int i = 0; i < permissions.length; i++) {
+                    if (Manifest.permission.READ_EXTERNAL_STORAGE.equals(permissions[i])) {
+                        if (grantResults[i] == PackageManager.PERMISSION_GRANTED) {
+                            readPermissionGranted = true;
+                        }
+                        break; // Found the permission we care about
+                    }
+                }
+            }
+
+            if (readPermissionGranted) {
+                Toast.makeText(this, "Read Storage permission granted.", Toast.LENGTH_SHORT).show();
+                // onPostCreate(); // Calling onPostCreate again might be too much, e.g., re-setting content view.
+                // Consider if a more targeted refresh is needed, or if initial load handles it.
+                // For now, let's assume the app can function or will prompt for file opening.
+                // If onPostCreate() is essential for basic app operation even after denial, then it must be called.
+                // Given its current content (UI setup, intent handling), it's probably okay to call.
+                onPostCreate(); 
+            } else {
+                // Permission was denied.
+                Toast.makeText(this, "Read Storage permission is required to access files.", Toast.LENGTH_LONG).show();
+                if (!shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                    // User selected "Don't ask again" or policy prohibits asking again.
+                    // Guide user to app settings.
+                    Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    Uri uri = Uri.fromParts("package", getPackageName(), null);
+                    intent.setData(uri);
+                    // Check if intent can be resolved to avoid ActivityNotFoundException
+                    if (intent.resolveActivity(getPackageManager()) != null) {
+                         Toast.makeText(this, "Permission permanently denied. Please enable it in app settings.", Toast.LENGTH_LONG).show();
+                         // Consider showing a dialog that explains this and then launching the intent on positive button click.
+                         // For now, direct launch for simplicity in this subtask.
+                         // startActivity(intent); // Launching settings might be too abrupt without more context/dialog.
+                         // For this subtask, just show a longer toast.
+                    } else {
+                         Toast.makeText(this, "Permission permanently denied. Please enable it in app settings (cannot open settings automatically).", Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    // User denied but did not select "Don't ask again".
+                    // Can show rationale and re-request if appropriate, or just inform them.
+                    // For now, the Toast above is the main feedback.
+                }
+                // App might have limited functionality or should guide user to open files via SAF picker
+                // which doesn't always need this specific permission.
             }
         }
     }
@@ -184,15 +251,15 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-
-    final private Context currentCTX = this;
     ActivityResultLauncher<Intent> startActivityResultLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 Intent intent = result.getData();
                 if (intent != null) {
                     Uri uri = intent.getData();
-                    moveToEditor(uri.toString(), uri);
+                    if (uri != null) { // Add null check for uri
+                        moveToEditor(uri); // Call the new single-argument moveToEditor
+                    }
                 }
             });
 
